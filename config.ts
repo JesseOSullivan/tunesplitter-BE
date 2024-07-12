@@ -1,2 +1,2 @@
-export const bucketName = 'mp3store-tunesnipper';
-export const YOUTUBE_API_KEY = 'AIzaSyDC1DKh-PpOOR-8QOXXfvr8KrihNxG4EcI'; 
+export const bucketName = process.env.BUCKET_NAME
+export const YOUTUBE_API_KEY =  process.env.YOUTUBE_API_KEY
