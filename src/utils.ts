@@ -7,15 +7,15 @@ import { YOUTUBE_API_KEY, secretAccessKey, accessKeyId, region } from './config'
 
 const s3 = new AWS.S3({ region, secretAccessKey, accessKeyId });
 
-export async function downloadAudio(videoUrl: string, outputFilePath: string): Promise<void> {
+
+export async function downloadVideo(videoUrl: string, outputFilePath: string): Promise<void> {
     return new Promise((resolve, reject) => {
         const startTimeDownload = Date.now();
         const process = youtubedl.exec(videoUrl, {
-            format: 'bestaudio',
+            format: 'bestvideo+bestaudio/best',
             output: outputFilePath,
-            extractAudio: true,
-            audioFormat: 'mp3',
-            audioQuality: 0
+            //make it lowest resolution
+
         });
 
         if (process.stdout) {
@@ -31,10 +31,10 @@ export async function downloadAudio(videoUrl: string, outputFilePath: string): P
         }
         process.on('close', (code) => {
             const endTimeDownload = Date.now();
-            const timeTaken = (endTimeDownload - startTimeDownload) / 1000; // in seconds
+            const timeTakenDownload = (endTimeDownload - startTimeDownload) / 1000; // in seconds
 
             if (code === 0) {
-                console.log(`Audio downloaded and extracted successfully: ${outputFilePath} in ${timeTaken} seconds`);
+                console.log(`Video downloaded successfully: ${outputFilePath} in ${timeTakenDownload} seconds`);
                 resolve();
             } else {
                 reject(new Error(`youtube-dl process exited with code ${code}`));
@@ -46,7 +46,6 @@ export async function downloadAudio(videoUrl: string, outputFilePath: string): P
         });
     });
 }
-
 export async function trimAudio(inputFilePath: string, outputFilePath: string, startTime: number, duration: number): Promise<void> {
     return new Promise((resolve, reject) => {
         if (fs.existsSync(outputFilePath)) {
@@ -218,4 +217,25 @@ async function fetchComments(videoId: string): Promise<string[]> {
         console.error(error.response?.data || error.message);
         throw new Error(`Failed to fetch comments: ${error.message}`);
     }
+}
+
+export async function extractAudio(inputFilePath: string, outputFilePath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const startTimeExtract = Date.now();
+        const command = `ffmpeg -i "${inputFilePath}" -q:a 0 -map a "${outputFilePath}"`;
+        console.log(`Executing command: ${command}`);
+        
+        exec(command, (error, stdout, stderr) => {
+            const endTimeExtract = Date.now();
+            const timeTakenExtract = (endTimeExtract - startTimeExtract) / 1000; // in seconds
+
+            if (error) {
+                console.error(`Error extracting audio: ${stderr}`);
+                reject(new Error(`Error extracting audio: ${stderr}`));
+            } else {
+                console.log(`Audio extracted successfully: ${outputFilePath} in ${timeTakenExtract} seconds`);
+                resolve();
+            }
+        });
+    });
 }
