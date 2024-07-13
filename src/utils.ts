@@ -11,10 +11,11 @@ const s3 = new AWS.S3({ region, secretAccessKey, accessKeyId });
 export async function downloadAudio(videoUrl: string, outputFilePath: string): Promise<void> {
     return new Promise((resolve, reject) => {
         const startTimeDownload = Date.now();
-        
+        const tempFilePath = outputFilePath.replace('.mp3', '.webm');
+
         const process = youtubedl.exec(videoUrl, {
-            format: 'bestaudio[ext=mp3]',
-            output: outputFilePath,
+            format: 'bestaudio',
+            output: tempFilePath,
         });
 
         if (process.stdout) {
@@ -29,13 +30,28 @@ export async function downloadAudio(videoUrl: string, outputFilePath: string): P
             });
         }
 
-        process.on('close', (code) => {
+        process.on('close', async (code) => {
             const endTimeDownload = Date.now();
             const timeTakenDownload = (endTimeDownload - startTimeDownload) / 1000; // in seconds
 
             if (code === 0) {
-                console.log(`Audio downloaded successfully: ${outputFilePath} in ${timeTakenDownload} seconds`);
-                resolve();
+                console.log(`Audio downloaded successfully: ${tempFilePath} in ${timeTakenDownload} seconds`);
+                if (tempFilePath.endsWith('.webm')) {
+                    console.log('Converting Opus to MP3...');
+                    const command = `ffmpeg -i "${tempFilePath}" -codec:a libmp3lame -qscale:a 2 "${outputFilePath}"`;
+                    exec(command, (error, stdout, stderr) => {
+                        if (error) {
+                            console.error(`Error converting Opus to MP3: ${stderr}`);
+                            reject(new Error(`Error converting Opus to MP3: ${stderr}`));
+                        } else {
+                            console.log(`Converted to MP3: ${outputFilePath}`);
+                            fs.unlinkSync(tempFilePath); // Clean up temp file
+                            resolve();
+                        }
+                    });
+                } else {
+                    resolve();
+                }
             } else {
                 reject(new Error(`youtube-dl process exited with code ${code}`));
             }
@@ -46,6 +62,7 @@ export async function downloadAudio(videoUrl: string, outputFilePath: string): P
         });
     });
 }
+
 
 export async function convertOpusToMp3(inputFilePath: string, outputFilePath: string): Promise<void> {
     return new Promise((resolve, reject) => {
