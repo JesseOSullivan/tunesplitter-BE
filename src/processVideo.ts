@@ -20,7 +20,7 @@ export async function processVideo(videoUrl: string): Promise<void> {
     console.log(`Found ${sections.length} sections`);
 
     // Process sections in smaller batches to avoid overwhelming the system
-    const batchSize = 5;
+    const batchSize = 50;
     for (let i = 0; i < sections.length; i += batchSize) {
       const batch = sections.slice(i, i + batchSize);
       console.log(`Processing batch ${Math.floor(i / batchSize) + 1}...`);
