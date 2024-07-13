@@ -59,3 +59,16 @@ export async function processVideo(videoUrl: string): Promise<void> {
     }
   }
 }
+
+
+export async function getSnippets(videoUrl: string): Promise<any[]> {
+  console.log(`Fetching snippets for ${videoUrl}`);
+  const sections = await getVideoSections(videoUrl);
+  return sections.map(({ start_time, end_time, title }) => {
+    const sanitizedTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    return {
+      title: sanitizedTitle,
+      s3Key: `${sanitizedTitle}.mp3`
+    };
+  });
+}
