@@ -46,13 +46,26 @@ export async function downloadAudio(videoUrl: string, outputFilePath: string): P
 
 export async function trimAudio(inputFilePath: string, outputFilePath: string, startTime: number, duration: number): Promise<void> {
     return new Promise((resolve, reject) => {
-        const command = `ffmpeg -i ${inputFilePath} -ss ${startTime} -t ${duration} -acodec copy ${outputFilePath}`;
-        exec(command, (error, stdout, stderr) => {
+        if (fs.existsSync(outputFilePath)) {
+            console.log(`Output file already exists: ${outputFilePath}. Skipping trim.`);
+            resolve();
+            return;
+        }
+
+        const command = `ffmpeg -i "${inputFilePath}" -ss ${startTime} -t ${duration} -acodec copy "${outputFilePath}"`;
+        console.log(`Executing command: ${command}`);
+        
+        const startTimeTrim = Date.now();
+        
+        exec(command, { timeout: 300000 }, (error, stdout, stderr) => { // Increased timeout to 5 minutes
+            const endTimeTrim = Date.now();
+            const timeTaken = (endTimeTrim - startTimeTrim) / 1000; // in seconds
+            
             if (error) {
                 console.error(`Error trimming audio: ${stderr}`);
-                reject(error);
+                reject(new Error(`Error trimming audio: ${stderr}`));
             } else {
-                console.log(`Audio trimmed successfully: ${outputFilePath}`);
+                console.log(`Audio trimmed successfully in ${timeTaken} seconds: ${outputFilePath}`);
                 resolve();
             }
         });
