@@ -1,7 +1,8 @@
 import express from 'express';
-import { processVideo } from './processVideo'; // Ensure the path is correct
+import { processVideo, getSnippets } from './processVideo'; // Ensure the correct path
 import AWS from 'aws-sdk';
 import { bucketName } from './config';
+import cors from 'cors';
 
 const s3 = new AWS.S3({
   accessKeyId: process.env.S3_ACCESS_KEY,
@@ -12,7 +13,8 @@ const s3 = new AWS.S3({
 const app = express();
 const port = 3001;
 
-// Endpoint to process video
+app.use(cors()); // Enable CORS for all routes
+
 app.get('/process-video', async (req, res) => {
   const videoUrl = req.query.url as string;
   if (!videoUrl) {
@@ -27,28 +29,33 @@ app.get('/process-video', async (req, res) => {
   }
 });
 
-// Endpoint to get signed URL
-app.get('/get-signed-url', (req, res) => {
-  const { key } = req.query;
-  
-  if (!key) {
-    return res.status(400).send('Missing key parameter.');
+app.get('/get-snippets', async (req, res) => {
+  const videoUrl = req.query.url as string;
+  if (!videoUrl) {
+    return res.status(400).send('Missing URL parameter.');
   }
 
-  const params = {
-    Bucket: bucketName!,
-    Key: key as string,
-    Expires: 60 * 60, // URL expiry time in seconds
-  };
+  try {
+    const snippets = await getSnippets(videoUrl);
+    const signedUrls = await Promise.all(
+      snippets.map(async (snippet: any) => {
+        const params = {
+          Bucket: bucketName!,
+          Key: snippet.s3Key,
+          Expires: 60 * 60, // URL expiry time in seconds
+        };
 
-  s3.getSignedUrl('getObject', params, (err, url) => {
-    if (err) {
-      console.error('Error generating signed URL', err);
-      return res.status(500).send('Error generating signed URL.');
-    }
-
-    res.send({ url });
-  });
+        const url = await s3.getSignedUrlPromise('getObject', params);
+        return {
+          title: snippet.title,
+          url,
+        };
+      })
+    );
+    res.send({ snippets: signedUrls });
+  } catch (error: any) {
+    res.status(500).send(`Error fetching snippets: ${error.message}`);
+  }
 });
 
 app.listen(port, () => {
