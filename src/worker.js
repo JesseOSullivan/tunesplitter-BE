@@ -1,9 +1,7 @@
 const { parentPort } = require('worker_threads');
 const fs = require('fs');
 const path = require('path');
-const youtubedl = require('youtube-dl-exec');
-const ffmpeg = require('fluent-ffmpeg');
-const { uploadToS3, getVideoSections, trimAudio } = require('./utils');
+const { downloadVideo, convertMP4toMP3, uploadToS3, getVideoSections, trimAudio } = require('./utils');
 const { bucketName } = require('./config');
 
 parentPort.on('message', async (data) => {
@@ -91,28 +89,3 @@ parentPort.on('message', async (data) => {
         parentPort.postMessage({ status: 'error', error: error.message });
     }
 });
-
-async function downloadVideo(youtubeURL, outputPath) {
-    // Download the video
-    await youtubedl(youtubeURL, {
-        output: outputPath,
-        format: 'mp4' // Ensure the video is downloaded in MP4 format
-    });
-    return outputPath;
-}
-
-async function convertMP4toMP3(mp4Path, mp3Path) {
-    return new Promise((resolve, reject) => {
-        ffmpeg(mp4Path)
-            .toFormat('mp3')
-            .save(mp3Path)
-            .on('end', () => {
-                console.log(`Successfully converted ${mp4Path} to ${mp3Path}`);
-                resolve();
-            })
-            .on('error', (err) => {
-                console.error(`Error converting ${mp4Path} to ${mp3Path}:`, err);
-                reject(err);
-            });
-    });
-}

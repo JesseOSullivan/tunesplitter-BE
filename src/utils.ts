@@ -9,75 +9,26 @@ import path from 'path';
 
 const s3 = new AWS.S3({ region, secretAccessKey, accessKeyId });
 
-export async function downloadAudio(videoUrl: string, outputFilePath: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-        const startTimeDownload = Date.now();
-        const tempFilePath = outputFilePath.replace('.mp3', '.webm');
-
-        const process = youtubedl.exec(videoUrl, {
-            format: 'bestaudio',
-            output: tempFilePath,
-        });
-
-        if (process.stdout) {
-            process.stdout.on('data', (data) => {
-                console.log(`stdout: ${data}`);
-            });
-        }
-
-        if (process.stderr) {
-            process.stderr.on('data', (data) => {
-                console.error(`stderr: ${data}`);
-            });
-        }
-
-        process.on('close', async (code) => {
-            const endTimeDownload = Date.now();
-            const timeTakenDownload = (endTimeDownload - startTimeDownload) / 1000; // in seconds
-
-            if (code === 0) {
-                console.log(`Audio downloaded successfully: ${tempFilePath} in ${timeTakenDownload} seconds`);
-                if (tempFilePath.endsWith('.webm')) {
-                    console.log('Converting Opus to MP3...');
-                    const command = `ffmpeg -i "${tempFilePath}" -codec:a libmp3lame -qscale:a 2 "${outputFilePath}"`;
-                    exec(command, (error, stdout, stderr) => {
-                        if (error) {
-                            console.error(`Error converting Opus to MP3: ${stderr}`);
-                            reject(new Error(`Error converting Opus to MP3: ${stderr}`));
-                        } else {
-                            console.log(`Converted to MP3: ${outputFilePath}`);
-                            fs.unlinkSync(tempFilePath); // Clean up temp file
-                            resolve();
-                        }
-                    });
-                } else {
-                    resolve();
-                }
-            } else {
-                reject(new Error(`youtube-dl process exited with code ${code}`));
-            }
-        });
-
-        process.on('error', (error) => {
-            reject(error);
-        });
+export async function downloadVideo(youtubeURL: string, outputPath: string): Promise<void> {
+    await youtubedl(youtubeURL, {
+        output: outputPath,
+        format: 'mp4', // Ensure the video is downloaded in MP4 format
     });
 }
 
-export async function convertOpusToMp3(inputFilePath: string, outputFilePath: string): Promise<void> {
+export async function convertMP4toMP3(mp4Path: string, mp3Path: string): Promise<void> {
     return new Promise((resolve, reject) => {
-        const command = `ffmpeg -i "${inputFilePath}" -codec:a libmp3lame -qscale:a 2 "${outputFilePath}"`;
-        console.log(`Converting Opus to MP3: ${command}`);
-        
-        exec(command, (error, stdout, stderr) => {
-            if (error) {
-                console.error(`Error converting Opus to MP3: ${stderr}`);
-                reject(new Error(`Error converting Opus to MP3: ${stderr}`));
-            } else {
-                console.log(`Converted Opus to MP3 successfully: ${outputFilePath}`);
+        ffmpeg(mp4Path)
+            .toFormat('mp3')
+            .save(mp3Path)
+            .on('end', () => {
+                console.log(`Successfully converted ${mp4Path} to ${mp3Path}`);
                 resolve();
-            }
-        });
+            })
+            .on('error', (err) => {
+                console.error(`Error converting ${mp4Path} to ${mp3Path}:`, err);
+                reject(err);
+            });
     });
 }
 
@@ -252,31 +203,4 @@ async function fetchComments(videoId: string): Promise<string[]> {
         console.error(error.response?.data || error.message);
         throw new Error(`Failed to fetch comments: ${error.message}`);
     }
-}
-
-export async function extractAudio(inputFilePath: string, outputFilePath: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-        const startTimeExtract = Date.now();
-        const command = `ffmpeg -i "${inputFilePath}" -q:a 0 -map a "${outputFilePath}"`;
-        console.log(`Executing command: ${command}`);
-
-        // Check if the input file exists before running the command
-        if (!fs.existsSync(inputFilePath)) {
-            reject(new Error(`Input file does not exist: ${inputFilePath}`));
-            return;
-        }
-
-        exec(command, (error, stdout, stderr) => {
-            const endTimeExtract = Date.now();
-            const timeTakenExtract = (endTimeExtract - startTimeExtract) / 1000; // in seconds
-
-            if (error) {
-                console.error(`Error extracting audio: ${stderr}`);
-                reject(new Error(`Error extracting audio: ${stderr}`));
-            } else {
-                console.log(`Audio extracted successfully: ${outputFilePath} in ${timeTakenExtract} seconds`);
-                resolve();
-            }
-        });
-    });
 }
