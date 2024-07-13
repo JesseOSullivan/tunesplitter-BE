@@ -157,7 +157,7 @@ function extractVideoId(url: string): string {
 async function fetchComments(videoId: string): Promise<string[]> {
     let comments: string[] = [];
     let nextPageToken = '';
-    const maxComments = 3000; // Increase max comments to fetch all
+    const maxComments = 300; // Increase max comments to fetch all
     let commentsFetched = 0;
 
     console.log(`Fetching comments for video ID: ${videoId}`);
@@ -168,7 +168,7 @@ async function fetchComments(videoId: string): Promise<string[]> {
                     part: 'snippet',
                     videoId,
                     key: YOUTUBE_API_KEY,
-                    maxResults: 1000,
+                    maxResults: 300,
                     pageToken: nextPageToken,
                     order: 'relevance',
                 },
