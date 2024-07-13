@@ -19,7 +19,6 @@ export async function processVideo(videoUrl: string): Promise<void> {
     const sections = await getVideoSections(videoUrl);
     console.log(`Found ${sections.length} sections`);
 
-    // Process sections in smaller batches to avoid overwhelming the system
     const batchSize = 50;
     for (let i = 0; i < sections.length; i += batchSize) {
       const batch = sections.slice(i, i + batchSize);
@@ -41,7 +40,6 @@ export async function processVideo(videoUrl: string): Promise<void> {
         await uploadToS3(outputFilePath, bucketName, s3Key);
         console.log(`Uploaded ${sanitizedTitle} to S3`);
 
-        // Clean up the trimmed section
         if (fs.existsSync(outputFilePath)) {
           fs.unlinkSync(outputFilePath);
           console.log(`Cleaned up ${outputFilePath}`);
@@ -49,16 +47,16 @@ export async function processVideo(videoUrl: string): Promise<void> {
       }));
       console.log(`Finished processing batch ${Math.floor(i / batchSize) + 1}`);
     }
-  } catch (error:any) {
+  } catch (error: any) {
     console.error(`Error: ${error.message}`);
   } finally {
-    // Clean up the downloaded full audio
     if (fs.existsSync(tempAudioPath)) {
       fs.unlinkSync(tempAudioPath);
       console.log(`Cleaned up ${tempAudioPath}`);
     }
   }
 }
+
 
 
 export async function getSnippets(videoUrl: string): Promise<any[]> {

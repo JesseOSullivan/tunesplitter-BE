@@ -9,6 +9,7 @@ const s3 = new AWS.S3({ region, secretAccessKey, accessKeyId });
 
 export async function downloadAudio(videoUrl: string, outputFilePath: string): Promise<void> {
     return new Promise((resolve, reject) => {
+        const startTimeDownload = Date.now();
         const process = youtubedl.exec(videoUrl, {
             format: 'bestaudio',
             output: outputFilePath,
@@ -24,14 +25,16 @@ export async function downloadAudio(videoUrl: string, outputFilePath: string): P
         }
 
         if (process.stderr) {
-
             process.stderr.on('data', (data) => {
                 console.error(`stderr: ${data}`);
             });
         }
         process.on('close', (code) => {
+            const endTimeDownload = Date.now();
+            const timeTaken = (endTimeDownload - startTimeDownload) / 1000; // in seconds
+
             if (code === 0) {
-                console.log(`Audio downloaded successfully: ${outputFilePath}`);
+                console.log(`Audio downloaded and extracted successfully: ${outputFilePath} in ${timeTaken} seconds`);
                 resolve();
             } else {
                 reject(new Error(`youtube-dl process exited with code ${code}`));
