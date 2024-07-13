@@ -11,11 +11,10 @@ const s3 = new AWS.S3({ region, secretAccessKey, accessKeyId });
 export async function downloadAudio(videoUrl: string, outputFilePath: string): Promise<void> {
     return new Promise((resolve, reject) => {
         const startTimeDownload = Date.now();
-        const tempOpusPath = outputFilePath.replace('.mp3', '.webm');
         
         const process = youtubedl.exec(videoUrl, {
-            format: 'bestaudio',
-            output: tempOpusPath,
+            format: 'bestaudio[ext=mp3]',
+            output: outputFilePath,
         });
 
         if (process.stdout) {
@@ -35,13 +34,8 @@ export async function downloadAudio(videoUrl: string, outputFilePath: string): P
             const timeTakenDownload = (endTimeDownload - startTimeDownload) / 1000; // in seconds
 
             if (code === 0) {
-                console.log(`Audio downloaded successfully: ${tempOpusPath} in ${timeTakenDownload} seconds`);
-                convertOpusToMp3(tempOpusPath, outputFilePath)
-                    .then(() => {
-                        fs.unlinkSync(tempOpusPath);
-                        resolve();
-                    })
-                    .catch(reject);
+                console.log(`Audio downloaded successfully: ${outputFilePath} in ${timeTakenDownload} seconds`);
+                resolve();
             } else {
                 reject(new Error(`youtube-dl process exited with code ${code}`));
             }
