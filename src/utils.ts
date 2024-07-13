@@ -4,9 +4,10 @@ import fs from 'fs';
 import AWS from 'aws-sdk';
 import axios from 'axios';
 import { YOUTUBE_API_KEY, secretAccessKey, accessKeyId, region } from './config';
+import ffmpeg from 'fluent-ffmpeg';
+import path from 'path';
 
 const s3 = new AWS.S3({ region, secretAccessKey, accessKeyId });
-
 
 export async function downloadAudio(videoUrl: string, outputFilePath: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -63,7 +64,6 @@ export async function downloadAudio(videoUrl: string, outputFilePath: string): P
     });
 }
 
-
 export async function convertOpusToMp3(inputFilePath: string, outputFilePath: string): Promise<void> {
     return new Promise((resolve, reject) => {
         const command = `ffmpeg -i "${inputFilePath}" -codec:a libmp3lame -qscale:a 2 "${outputFilePath}"`;
@@ -80,6 +80,7 @@ export async function convertOpusToMp3(inputFilePath: string, outputFilePath: st
         });
     });
 }
+
 export async function trimAudio(inputFilePath: string, outputFilePath: string, startTime: number, duration: number): Promise<void> {
     return new Promise((resolve, reject) => {
         if (fs.existsSync(outputFilePath)) {
