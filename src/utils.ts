@@ -11,9 +11,11 @@ const s3 = new AWS.S3({ region, secretAccessKey, accessKeyId });
 export async function downloadAudio(videoUrl: string, outputFilePath: string): Promise<void> {
     return new Promise((resolve, reject) => {
         const startTimeDownload = Date.now();
+        const tempOpusPath = outputFilePath.replace('.mp3', '.webm');
+        
         const process = youtubedl.exec(videoUrl, {
             format: 'bestaudio',
-            output: outputFilePath,
+            output: tempOpusPath,
         });
 
         if (process.stdout) {
@@ -33,8 +35,13 @@ export async function downloadAudio(videoUrl: string, outputFilePath: string): P
             const timeTakenDownload = (endTimeDownload - startTimeDownload) / 1000; // in seconds
 
             if (code === 0) {
-                console.log(`Audio downloaded successfully: ${outputFilePath} in ${timeTakenDownload} seconds`);
-                resolve();
+                console.log(`Audio downloaded successfully: ${tempOpusPath} in ${timeTakenDownload} seconds`);
+                convertOpusToMp3(tempOpusPath, outputFilePath)
+                    .then(() => {
+                        fs.unlinkSync(tempOpusPath);
+                        resolve();
+                    })
+                    .catch(reject);
             } else {
                 reject(new Error(`youtube-dl process exited with code ${code}`));
             }
@@ -42,6 +49,23 @@ export async function downloadAudio(videoUrl: string, outputFilePath: string): P
 
         process.on('error', (error) => {
             reject(error);
+        });
+    });
+}
+
+export async function convertOpusToMp3(inputFilePath: string, outputFilePath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const command = `ffmpeg -i "${inputFilePath}" -codec:a libmp3lame -qscale:a 2 "${outputFilePath}"`;
+        console.log(`Converting Opus to MP3: ${command}`);
+        
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error converting Opus to MP3: ${stderr}`);
+                reject(new Error(`Error converting Opus to MP3: ${stderr}`));
+            } else {
+                console.log(`Converted Opus to MP3 successfully: ${outputFilePath}`);
+                resolve();
+            }
         });
     });
 }
