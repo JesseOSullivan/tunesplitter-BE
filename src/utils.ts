@@ -141,7 +141,7 @@ export async function getVideoSections(videoUrl: string): Promise<{ start_time: 
             }
             return sections;
         }
-    } catch (error) {
+    } catch (error:any) {
         throw new Error(`Failed to fetch video sections: ${error.message}`);
     }
 }
@@ -178,7 +178,7 @@ async function fetchComments(videoId: string): Promise<string[]> {
             }
 
             const commentItems = response.data.items;
-            commentItems.forEach(item => {
+            commentItems.forEach((item: { snippet: { topLevelComment: { snippet: { textDisplay: any; }; }; }; }) => {
                 const comment = item.snippet.topLevelComment.snippet.textDisplay;
                 comments.push(comment);
                 commentsFetched++;
@@ -197,7 +197,7 @@ async function fetchComments(videoId: string): Promise<string[]> {
         }
 
         return comments;
-    } catch (error) {
+    } catch (error:any) {
         console.error(`Failed to fetch comments: ${error.message}`);
         console.error(error.response?.data || error.message);
         throw new Error(`Failed to fetch comments: ${error.message}`);
