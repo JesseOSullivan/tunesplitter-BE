@@ -1,14 +1,7 @@
 import express from 'express';
 import { processVideo, getSnippets } from './processVideo'; // Ensure the correct path
-import AWS from 'aws-sdk';
 import { bucketName } from './config';
 import cors from 'cors';
-
-const s3 = new AWS.S3({
-  accessKeyId: process.env.S3_ACCESS_KEY,
-  secretAccessKey: process.env.S3_SECRET_KEY,
-  region: 'ap-northeast-1',
-});
 
 const app = express();
 const port = 3001;
@@ -37,22 +30,11 @@ app.get('/get-snippets', async (req, res) => {
 
   try {
     const snippets = await getSnippets(videoUrl);
-    const signedUrls = await Promise.all(
-      snippets.map(async (snippet: any) => {
-        const params = {
-          Bucket: bucketName!,
-          Key: snippet.s3Key,
-          Expires: 60 * 60, // URL expiry time in seconds
-        };
-
-        const url = await s3.getSignedUrlPromise('getObject', params);
-        return {
-          title: snippet.title,
-          url,
-        };
-      })
-    );
-    res.send({ snippets: signedUrls });
+    const publicUrls = snippets.map((snippet: any) => ({
+      title: snippet.title,
+      url: `https://${bucketName}.s3.ap-southeast-2.amazonaws.com/${snippet.s3Key}`,
+    }));
+    res.send({ snippets: publicUrls });
   } catch (error: any) {
     res.status(500).send(`Error fetching snippets: ${error.message}`);
   }
