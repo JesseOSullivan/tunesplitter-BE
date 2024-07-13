@@ -11,6 +11,13 @@ const port = 3001;
 
 app.use(cors()); // Enable CORS for all routes
 
+
+// Middleware to log incoming requests
+app.use((req, res, next) => {
+  console.log(`Received ${req.method} request for ${req.url}`);
+  next();
+});
+
 app.get('/process-video', async (req, res) => {
   const videoUrl = req.query.url as string;
   if (!videoUrl) {
