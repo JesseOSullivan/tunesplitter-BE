@@ -8,40 +8,41 @@ import { YOUTUBE_API_KEY, secretAccessKey, accessKeyId, region } from './config'
 const s3 = new AWS.S3({ region, secretAccessKey, accessKeyId });
 
 
-export async function downloadVideo(videoUrl: string, outputFilePath: string): Promise<void> {
+export async function downloadVideo(videoUrl: string, videoOutputPath: string, audioOutputPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
         const startTimeDownload = Date.now();
-        const process = youtubedl.exec(videoUrl, {
-            format: 'worstvideo+bestaudio/best',
-            output: outputFilePath,
+        const videoProcess = youtubedl.exec(videoUrl, {
+            format: 'worstvideo',
+            output: videoOutputPath,
         });
 
-        if (process.stdout) {
-            process.stdout.on('data', (data) => {
-                console.log(`stdout: ${data}`);
+        const audioProcess = youtubedl.exec(videoUrl, {
+            format: 'bestaudio',
+            output: audioOutputPath,
+        });
+
+        Promise.all([videoProcess, audioProcess])
+            .then(() => {
+                const endTimeDownload = Date.now();
+                const timeTakenDownload = (endTimeDownload - startTimeDownload) / 1000; // in seconds
+
+                console.log(`Video and audio downloaded successfully in ${timeTakenDownload} seconds`);
+
+                const mergedOutputPath = videoOutputPath.replace('.mp4', '_merged.mp4');
+                const command = `ffmpeg -i "${videoOutputPath}" -i "${audioOutputPath}" -c:v copy -c:a aac "${mergedOutputPath}"`;
+                exec(command, (error, stdout, stderr) => {
+                    if (error) {
+                        console.error(`Error merging video and audio: ${stderr}`);
+                        reject(new Error(`Error merging video and audio: ${stderr}`));
+                    } else {
+                        console.log(`Video and audio merged successfully: ${mergedOutputPath}`);
+                        resolve();
+                    }
+                });
+            })
+            .catch((error) => {
+                reject(new Error(`Error downloading video or audio: ${error.message}`));
             });
-        }
-
-        if (process.stderr) {
-            process.stderr.on('data', (data) => {
-                console.error(`stderr: ${data}`);
-            });
-        }
-        process.on('close', (code) => {
-            const endTimeDownload = Date.now();
-            const timeTakenDownload = (endTimeDownload - startTimeDownload) / 1000; // in seconds
-
-            if (code === 0) {
-                console.log(`Video downloaded successfully: ${outputFilePath} in ${timeTakenDownload} seconds`);
-                resolve();
-            } else {
-                reject(new Error(`youtube-dl process exited with code ${code}`));
-            }
-        });
-
-        process.on('error', (error) => {
-            reject(error);
-        });
     });
 }
 export async function trimAudio(inputFilePath: string, outputFilePath: string, startTime: number, duration: number): Promise<void> {
