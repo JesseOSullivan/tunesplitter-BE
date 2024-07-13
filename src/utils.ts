@@ -12,10 +12,8 @@ export async function downloadVideo(videoUrl: string, outputFilePath: string): P
     return new Promise((resolve, reject) => {
         const startTimeDownload = Date.now();
         const process = youtubedl.exec(videoUrl, {
-            format: 'bestvideo+bestaudio/best',
+            format: 'worstvideo+bestaudio/best',
             output: outputFilePath,
-            //make it lowest resolution
-
         });
 
         if (process.stdout) {
@@ -224,7 +222,13 @@ export async function extractAudio(inputFilePath: string, outputFilePath: string
         const startTimeExtract = Date.now();
         const command = `ffmpeg -i "${inputFilePath}" -q:a 0 -map a "${outputFilePath}"`;
         console.log(`Executing command: ${command}`);
-        
+
+        // Check if the input file exists before running the command
+        if (!fs.existsSync(inputFilePath)) {
+            reject(new Error(`Input file does not exist: ${inputFilePath}`));
+            return;
+        }
+
         exec(command, (error, stdout, stderr) => {
             const endTimeExtract = Date.now();
             const timeTakenExtract = (endTimeExtract - startTimeExtract) / 1000; // in seconds
