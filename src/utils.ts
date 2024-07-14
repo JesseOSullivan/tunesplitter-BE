@@ -73,21 +73,42 @@ export async function uploadToS3(filePath: string, s3Bucket: string, s3Key: stri
 }
 
 export function parseTimestamps(text: string): { start_time: number, end_time: number, title: string }[] {
-    const timestampRegex = /(\d+:\d+:\d+).*?>(.*?)<br>/g;
+    const patterns = [
+        /(\d{1,2}:\d{2}:\d{2})/g, // Matches HH:MM:SS
+        /(\d{1,2}:\d{2})/g,       // Matches MM:SS or HH:MM
+        /(\d{1,2}\.\d{2})/g       // Matches MM.SS
+    ];
+    
     const sections: { start_time: number, end_time: number, title: string }[] = [];
-    let match;
+    let matches: RegExpExecArray[] = [];
 
-    while ((match = timestampRegex.exec(text)) !== null) {
-        const timeParts = match[1].split(':');
-        const hours = parseInt(timeParts[0], 10);
-        const minutes = parseInt(timeParts[1], 10);
-        const seconds = parseInt(timeParts[2], 10);
-        const title = match[2].replace(/<[^>]*>/g, '').trim();
+    // Extract all matches for each pattern
+    patterns.forEach((pattern) => {
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            matches.push(match);
+        }
+    });
 
-        const startTime = hours * 3600 + minutes * 60 + seconds;
+    // Sort matches by their position in the text
+    matches.sort((a, b) => a.index - b.index);
+
+    // Parse matches into sections
+    matches.forEach((match, index) => {
+        const timeParts = match[1].includes(':') ? match[1].split(':') : match[1].split('.');
+        const title = `section_${index}`;
+
+        let startTime = 0;
+        if (timeParts.length === 3) { // HH:MM:SS
+            startTime = parseInt(timeParts[0], 10) * 3600 + parseInt(timeParts[1], 10) * 60 + parseInt(timeParts[2], 10);
+        } else if (timeParts.length === 2) { // MM:SS or MM.SS
+            startTime = parseInt(timeParts[0], 10) * 60 + parseInt(timeParts[1], 10);
+        }
+
         sections.push({ start_time: startTime, end_time: 0, title });
-    }
+    });
 
+    // Set end times for each section
     for (let i = 0; i < sections.length - 1; i++) {
         sections[i].end_time = sections[i + 1].start_time;
     }
@@ -142,7 +163,7 @@ export async function getVideoSections(videoUrl: string): Promise<{ start_time: 
             }
             return sections;
         }
-    } catch (error:any) {
+    } catch (error: any) {
         throw new Error(`Failed to fetch video sections: ${error.message}`);
     }
 }
@@ -168,7 +189,7 @@ async function fetchComments(videoId: string): Promise<string[]> {
                     part: 'snippet',
                     videoId,
                     key: YOUTUBE_API_KEY,
-                    maxResults: 300,
+                    maxResults: 100,
                     pageToken: nextPageToken,
                     order: 'relevance',
                 },
@@ -198,9 +219,10 @@ async function fetchComments(videoId: string): Promise<string[]> {
         }
 
         return comments;
-    } catch (error:any) {
+    } catch (error: any) {
         console.error(`Failed to fetch comments: ${error.message}`);
         console.error(error.response?.data || error.message);
         throw new Error(`Failed to fetch comments: ${error.message}`);
     }
 }
+
