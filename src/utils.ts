@@ -10,16 +10,22 @@ import path from 'path';
 const s3 = new AWS.S3({ region, secretAccessKey, accessKeyId });
 
 export async function downloadVideo(youtubeURL: string, outputPath: string): Promise<void> {
+    console.log(`Downloading video from ${youtubeURL} to ${outputPath}`);
     await youtubedl(youtubeURL, {
         output: outputPath,
         format: 'mp4', // Ensure the video is downloaded in MP4 format
     });
+    console.log(`Video downloaded successfully to ${outputPath}`);
 }
 
 export async function convertMP4toMP3(mp4Path: string, mp3Path: string): Promise<void> {
+    console.log(`Converting ${mp4Path} to ${mp3Path}`);
     return new Promise((resolve, reject) => {
         ffmpeg(mp4Path)
             .toFormat('mp3')
+            .on('progress', (progress) => {
+                console.log(`Processing: ${progress.percent}% done`);
+            })
             .save(mp3Path)
             .on('end', () => {
                 console.log(`Successfully converted ${mp4Path} to ${mp3Path}`);
@@ -33,6 +39,7 @@ export async function convertMP4toMP3(mp4Path: string, mp3Path: string): Promise
 }
 
 export async function trimAudio(inputFilePath: string, outputFilePath: string, startTime: number, duration: number): Promise<void> {
+    console.log(`Trimming audio from ${inputFilePath} to ${outputFilePath}, start: ${startTime}, duration: ${duration}`);
     return new Promise((resolve, reject) => {
         if (fs.existsSync(outputFilePath)) {
             console.log(`Output file already exists: ${outputFilePath}. Skipping trim.`);
@@ -42,13 +49,13 @@ export async function trimAudio(inputFilePath: string, outputFilePath: string, s
 
         const command = `ffmpeg -i "${inputFilePath}" -ss ${startTime} -t ${duration} -acodec copy "${outputFilePath}"`;
         console.log(`Executing command: ${command}`);
-        
+
         const startTimeTrim = Date.now();
-        
+
         exec(command, { timeout: 300000 }, (error, stdout, stderr) => { // Increased timeout to 5 minutes
             const endTimeTrim = Date.now();
             const timeTaken = (endTimeTrim - startTimeTrim) / 1000; // in seconds
-            
+
             if (error) {
                 console.error(`Error trimming audio: ${stderr}`);
                 reject(new Error(`Error trimming audio: ${stderr}`));
@@ -61,6 +68,7 @@ export async function trimAudio(inputFilePath: string, outputFilePath: string, s
 }
 
 export async function uploadToS3(filePath: string, s3Bucket: string, s3Key: string): Promise<AWS.S3.ManagedUpload.SendData> {
+    console.log(`Uploading ${filePath} to S3 bucket ${s3Bucket} with key ${s3Key}`);
     const fileContent = fs.readFileSync(filePath);
 
     const params = {
@@ -69,46 +77,40 @@ export async function uploadToS3(filePath: string, s3Bucket: string, s3Key: stri
         Body: fileContent,
     };
 
-    return s3.upload(params).promise();
+    const upload = s3.upload(params);
+
+    upload.on('httpUploadProgress', (progress) => {
+        console.log(`Upload progress: ${Math.round((progress.loaded / progress.total) * 100)}%`);
+    });
+
+    const result = await upload.promise();
+    console.log(`Successfully uploaded ${filePath} to S3 bucket ${s3Bucket} with key ${s3Key}`);
+    return result;
 }
 
 export function parseTimestamps(text: string): { start_time: number, end_time: number, title: string }[] {
-    const patterns = [
-        /(\d{1,2}:\d{2}:\d{2})/g, // Matches HH:MM:SS
-        /(\d{1,2}:\d{2})/g,       // Matches MM:SS or HH:MM
-        /(\d{1,2}\.\d{2})/g       // Matches MM.SS
-    ];
+    // Remove HTML tags
+    const plainText = text.replace(/<\/?[^>]+(>|$)/g, " ");
     
-    const sections: { start_time: number, end_time: number, title: string }[] = [];
-    let matches: RegExpExecArray[] = [];
+    // Regular expression to match timestamps and titles
+    const timestampRegex = /(\d{1,2}:\d{2}(?::\d{2})?)\s+(.*?)\s+(?=\d{1,2}:\d{2}(?::\d{2})?|$)/g;
+    const sections = [];
+    let match;
 
-    // Extract all matches for each pattern
-    patterns.forEach((pattern) => {
-        let match;
-        while ((match = pattern.exec(text)) !== null) {
-            matches.push(match);
-        }
-    });
-
-    // Sort matches by their position in the text
-    matches.sort((a, b) => a.index - b.index);
-
-    // Parse matches into sections
-    matches.forEach((match, index) => {
-        const timeParts = match[1].includes(':') ? match[1].split(':') : match[1].split('.');
-        const title = `section_${index}`;
+    while ((match = timestampRegex.exec(plainText)) !== null) {
+        const timeParts = match[1].split(':');
+        const title = match[2].trim();
 
         let startTime = 0;
         if (timeParts.length === 3) { // HH:MM:SS
             startTime = parseInt(timeParts[0], 10) * 3600 + parseInt(timeParts[1], 10) * 60 + parseInt(timeParts[2], 10);
-        } else if (timeParts.length === 2) { // MM:SS or MM.SS
+        } else if (timeParts.length === 2) { // MM:SS
             startTime = parseInt(timeParts[0], 10) * 60 + parseInt(timeParts[1], 10);
         }
 
         sections.push({ start_time: startTime, end_time: 0, title });
-    });
+    }
 
-    // Set end times for each section
     for (let i = 0; i < sections.length - 1; i++) {
         sections[i].end_time = sections[i + 1].start_time;
     }
@@ -225,4 +227,3 @@ async function fetchComments(videoId: string): Promise<string[]> {
         throw new Error(`Failed to fetch comments: ${error.message}`);
     }
 }
-
