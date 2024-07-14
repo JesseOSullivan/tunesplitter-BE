@@ -83,18 +83,10 @@ export async function uploadToS3(filePath: string, s3Bucket: string, s3Key: stri
     upload.on('httpUploadProgress', (progress) => {
         console.log(`Upload progress: ${Math.round((progress.loaded / progress.total) * 100)}%`);
     });
-    try {
-        const result  = await upload.promise();
-        console.log(`Successfully uploaded ${filePath} to S3 bucket ${s3Bucket} with key ${s3Key}`);
 
-        return result;
-
-    }
-    catch (error: any) {
-        console.error(`Failed to upload ${filePath} to S3 bucket ${s3Bucket} with key ${s3Key}: ${error.message}`);
-        throw error;
-    }
-
+    const result = await upload.promise();
+    console.log(`Successfully uploaded ${filePath} to S3 bucket ${s3Bucket} with key ${s3Key}`);
+    return result;
 }
 
 export function parseTimestamps(text: string): { start_time: number, end_time: number, title: string }[] {
