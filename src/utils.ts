@@ -9,13 +9,35 @@ import path from 'path';
 
 const s3 = new AWS.S3({ region, secretAccessKey, accessKeyId });
 
-export async function downloadVideo(youtubeURL: string, outputPath: string): Promise<void> {
-    console.log(`Downloading video from ${youtubeURL} to ${outputPath}`);
+export async function downloadAudio(youtubeURL: string, outputPath: string): Promise<void> {
+    console.log(`Downloading audio from ${youtubeURL} to ${outputPath}`);
     await youtubedl(youtubeURL, {
         output: outputPath,
-        format: 'worst',
+        format: 'bestaudio', // Ensure only the audio is downloaded
     });
-    console.log(`Video downloaded successfully to ${outputPath}`);
+    console.log(`Audio downloaded successfully to ${outputPath}`);
+}
+
+
+
+export async function convertAudioFormat(inputPath: string, outputPath: string): Promise<void> {
+    console.log(`Converting ${inputPath} to ${outputPath}`);
+    return new Promise((resolve, reject) => {
+        ffmpeg(inputPath)
+            .toFormat('mp3')
+            .on('progress', (progress) => {
+                console.log(`Processing: ${progress.percent}% done`);
+            })
+            .save(outputPath)
+            .on('end', () => {
+                console.log(`Successfully converted ${inputPath} to ${outputPath}`);
+                resolve();
+            })
+            .on('error', (err) => {
+                console.error(`Error converting ${inputPath} to ${outputPath}:`, err);
+                reject(err);
+            });
+    });
 }
 
 export async function convertMP4toMP3(mp4Path: string, mp3Path: string): Promise<void> {

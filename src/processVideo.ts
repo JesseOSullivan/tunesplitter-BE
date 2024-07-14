@@ -1,12 +1,12 @@
 import path from 'path';
 import fs from 'fs';
-import { downloadVideo, convertMP4toMP3, trimAudio, uploadToS3, getVideoSections } from './utils';
+import { downloadAudio, convertAudioFormat, trimAudio, uploadToS3, getVideoSections } from './utils';
 import { bucketName } from './config';
 
 export async function processVideo(videoUrl: string): Promise<void> {
     const videoID = videoUrl.split('v=')[1].split('&')[0];
     const videoDir = path.join(__dirname, '..', 'storage', videoID);
-    const videoPath = path.join(videoDir, 'video.mp4');
+    const audioPath = path.join(videoDir, 'audio.m4a'); // Assuming audio format is m4a
     const mp3Path = path.join(videoDir, 'audio.mp3');
 
     if (!fs.existsSync(videoDir)) {
@@ -14,18 +14,18 @@ export async function processVideo(videoUrl: string): Promise<void> {
     }
 
     try {
-        console.log('Starting video download...');
-        await downloadVideo(videoUrl, videoPath);
-        console.log(`Video downloaded successfully: ${videoPath}`);
+        console.log('Starting audio download...');
+        await downloadAudio(videoUrl, audioPath);
+        console.log(`Audio downloaded successfully: ${audioPath}`);
 
-        // Check if the video file exists before proceeding
-        if (!fs.existsSync(videoPath)) {
-            throw new Error(`Downloaded video file does not exist: ${videoPath}`);
+        // Check if the audio file exists before proceeding
+        if (!fs.existsSync(audioPath)) {
+            throw new Error(`Downloaded audio file does not exist: ${audioPath}`);
         }
 
-        console.log('Converting video to MP3...');
-        await convertMP4toMP3(videoPath, mp3Path);
-        console.log(`Video converted to MP3 successfully: ${mp3Path}`);
+        console.log('Converting audio to MP3...');
+        await convertAudioFormat(audioPath, mp3Path);
+        console.log(`Audio converted to MP3 successfully: ${mp3Path}`);
 
         // Check if the MP3 file exists before proceeding
         if (!fs.existsSync(mp3Path)) {
@@ -69,10 +69,10 @@ export async function processVideo(videoUrl: string): Promise<void> {
     } catch (error: any) {
         console.error(`Error: ${error.message}`);
     } finally {
-        // Clean up the downloaded full video and audio
-        if (fs.existsSync(videoPath)) {
-            fs.unlinkSync(videoPath);
-            console.log(`Cleaned up ${videoPath}`);
+        // Clean up the downloaded full audio
+        if (fs.existsSync(audioPath)) {
+            fs.unlinkSync(audioPath);
+            console.log(`Cleaned up ${audioPath}`);
         }
         if (fs.existsSync(mp3Path)) {
             fs.unlinkSync(mp3Path);
