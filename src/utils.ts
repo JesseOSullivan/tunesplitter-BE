@@ -13,7 +13,7 @@ export async function downloadVideo(youtubeURL: string, outputPath: string): Pro
     console.log(`Downloading video from ${youtubeURL} to ${outputPath}`);
     await youtubedl(youtubeURL, {
         output: outputPath,
-        format: 'mp4', // Ensure the video is downloaded in MP4 format
+        format: 'worst',
     });
     console.log(`Video downloaded successfully to ${outputPath}`);
 }
