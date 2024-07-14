@@ -37,6 +37,7 @@ app.get('/process-and-fetch-snippets', async (req, res) => {
     }));
     res.send({ snippets: publicUrls });
   } catch (error: any) {
+    console.error(`Error processing video or fetching snippets: ${error.message}`);
     res.status(500).send(`Error processing video or fetching snippets: ${error.message}`);
   }
 });
@@ -75,6 +76,7 @@ app.post('/download-all', async (req, res) => {
 
     await archive.finalize();
   } catch (error: any) {
+    console.error(`Error creating zip file: ${error.message}`);
     res.status(500).send(`Error creating zip file: ${error.message}`);
   }
 });
