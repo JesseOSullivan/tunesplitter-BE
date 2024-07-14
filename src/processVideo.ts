@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { downloadAudio, convertAudioFormat, trimAudio, uploadToS3, getVideoSections } from './utils';
 import { bucketName } from './config';
+import { Worker } from 'worker_threads';
 
 export async function processVideo(videoUrl: string): Promise<void> {
     const videoID = videoUrl.split('v=')[1].split('&')[0];
@@ -36,11 +37,15 @@ export async function processVideo(videoUrl: string): Promise<void> {
         const sections = await getVideoSections(videoUrl);
         console.log(`Found ${sections.length} sections`);
 
-        // Process sections in smaller batches to avoid overwhelming the system
-        const batchSize = 50;
-        for (let i = 0; i < sections.length; i += batchSize) {
-            const batch = sections.slice(i, i + batchSize);
-            console.log(`Processing batch ${Math.floor(i / batchSize) + 1}...`);
+        // Process sections in parallel
+        const parallelLimit = 4; // Number of parallel processes
+        const sectionBatches = [];
+        for (let i = 0; i < sections.length; i += parallelLimit) {
+            sectionBatches.push(sections.slice(i, i + parallelLimit));
+        }
+
+        for (const batch of sectionBatches) {
+            console.log(`Processing batch...`);
             await Promise.all(batch.map(async ({ start_time, end_time, title }) => {
                 const sanitizedTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
                 const outputFilePath = path.join(videoDir, `${sanitizedTitle}.mp3`);
@@ -64,7 +69,7 @@ export async function processVideo(videoUrl: string): Promise<void> {
                     console.log(`Cleaned up ${outputFilePath}`);
                 }
             }));
-            console.log(`Finished processing batch ${Math.floor(i / batchSize) + 1}`);
+            console.log(`Finished processing batch`);
         }
     } catch (error: any) {
         console.error(`Error: ${error.message}`);

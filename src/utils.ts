@@ -5,7 +5,6 @@ import AWS from 'aws-sdk';
 import axios from 'axios';
 import { YOUTUBE_API_KEY, secretAccessKey, accessKeyId, region } from './config';
 import ffmpeg from 'fluent-ffmpeg';
-import path from 'path';
 
 const s3 = new AWS.S3({ region, secretAccessKey, accessKeyId });
 
@@ -17,8 +16,6 @@ export async function downloadAudio(youtubeURL: string, outputPath: string): Pro
     });
     console.log(`Audio downloaded successfully to ${outputPath}`);
 }
-
-
 
 export async function convertAudioFormat(inputPath: string, outputPath: string): Promise<void> {
     console.log(`Converting ${inputPath} to ${outputPath}`);
@@ -35,26 +32,6 @@ export async function convertAudioFormat(inputPath: string, outputPath: string):
             })
             .on('error', (err) => {
                 console.error(`Error converting ${inputPath} to ${outputPath}:`, err);
-                reject(err);
-            });
-    });
-}
-
-export async function convertMP4toMP3(mp4Path: string, mp3Path: string): Promise<void> {
-    console.log(`Converting ${mp4Path} to ${mp3Path}`);
-    return new Promise((resolve, reject) => {
-        ffmpeg(mp4Path)
-            .toFormat('mp3')
-            .on('progress', (progress) => {
-                console.log(`Processing: ${progress.percent}% done`);
-            })
-            .save(mp3Path)
-            .on('end', () => {
-                console.log(`Successfully converted ${mp4Path} to ${mp3Path}`);
-                resolve();
-            })
-            .on('error', (err) => {
-                console.error(`Error converting ${mp4Path} to ${mp3Path}:`, err);
                 reject(err);
             });
     });
