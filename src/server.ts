@@ -1,14 +1,20 @@
 import express from 'express';
-import cors from 'cors';
 import archiver from 'archiver';
 import { getSnippets, processVideo } from './processVideo'; // Ensure the correct path
 import { bucketName, accessKeyId, secretAccessKey, region } from './config';
 import { S3 } from 'aws-sdk';
+import cors from 'cors';
 
 const app = express();
 const port = 3001;
 
-app.use(cors()); // Enable CORS for all routes
+// Enable CORS only in development mode
+if (process.env.NODE_ENV === 'development') {
+  app.use(cors()); // Enable CORS for all routes
+}
+
+app.use(express.json()); // To handle JSON body
+app.use(express.urlencoded({ extended: true })); // To handle URL-encoded body
 
 // Middleware to log incoming requests
 app.use((req, res, next) => {
@@ -26,12 +32,9 @@ app.get('/process-and-fetch-snippets', async (req, res) => {
   try {
     await processVideo(videoUrl); // Process the video
     const snippets = await getSnippets(videoUrl); // Fetch the snippets
-    const publicUrls = snippets.map((snippet: any) => ({
-      title: snippet.title,
-      url: `https://${bucketName}.s3.ap-southeast-2.amazonaws.com/${snippet.s3Key}`,
-    }));
-    res.send({ snippets: publicUrls });
+    res.send({ snippets });
   } catch (error: any) {
+    console.error(`Error processing video or fetching snippets: ${error.message}`);
     res.status(500).send(`Error processing video or fetching snippets: ${error.message}`);
   }
 });
@@ -63,13 +66,14 @@ app.post('/download-all', async (req, res) => {
       throw new Error('S3 bucket name is not provided.');
     }
     for (const snippet of snippets) {
-      const s3Key = snippet.url.split('.com/')[1];
+      const s3Key = snippet.url.split('?')[0].split('/').pop();
       const stream = s3.getObject({ Bucket: bucketName, Key: s3Key }).createReadStream();
       archive.append(stream, { name: `${snippet.title}.mp3` });
     }
 
     await archive.finalize();
   } catch (error: any) {
+    console.error(`Error creating zip file: ${error.message}`);
     res.status(500).send(`Error creating zip file: ${error.message}`);
   }
 });
