@@ -37,16 +37,16 @@ app.get('/process-and-fetch-snippets', async (req, res) => {
 });
 
 // Endpoint to download all snippets as a zip file
-app.get('/download-all', async (req, res) => {
+app.post('/download-all', async (req, res) => {
   console.log('Downloading all snippets as a zip file...');
-  const videoUrl = req.query.url as string;
-  if (!videoUrl) {
-    return res.status(400).send('Missing URL parameter.');
+  const { videoUrl, snippets } = req.body;
+
+  if (!videoUrl || !snippets) {
+    return res.status(400).send('Missing URL or snippets parameter.');
   }
 
   try {
-    console.log('Fetching snippets...', accessKeyId, secretAccessKey, region);
-    const snippets = await getSnippets(videoUrl);
+    console.log('Fetching snippets from provided data', accessKeyId, secretAccessKey, region);
     const s3 = new S3({
       accessKeyId: accessKeyId,
       secretAccessKey: secretAccessKey,
@@ -60,12 +60,11 @@ app.get('/download-all', async (req, res) => {
     });
     archive.pipe(res);
 
+    if (!bucketName) {
+      throw new Error('S3 bucket name is not provided.');
+    }
     for (const snippet of snippets) {
-      const s3Key = snippet.s3Key;
-      if (!bucketName) {
-        throw new Error('S3 bucket name is not provided.');
-      }
-
+      const s3Key = snippet.url.split('.com/')[1];
       const stream = s3.getObject({ Bucket: bucketName, Key: s3Key }).createReadStream();
       archive.append(stream, { name: `${snippet.title}.mp3` });
     }
@@ -75,6 +74,7 @@ app.get('/download-all', async (req, res) => {
     res.status(500).send(`Error creating zip file: ${error.message}`);
   }
 });
+
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
