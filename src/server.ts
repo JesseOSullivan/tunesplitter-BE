@@ -1,14 +1,18 @@
 import express from 'express';
-import cors from 'cors';
 import archiver from 'archiver';
 import { getSnippets, processVideo } from './processVideo'; // Ensure the correct path
 import { bucketName, accessKeyId, secretAccessKey, region } from './config';
 import { S3 } from 'aws-sdk';
+import cors from 'cors';
 
 const app = express();
 const port = 3001;
 
-app.use(cors()); // Enable CORS for all routes
+// Enable CORS only in development mode
+if (process.env.NODE_ENV === 'development') {
+  app.use(cors()); // Enable CORS for all routes
+}
+
 app.use(express.json()); // To handle JSON body
 
 // Middleware to log incoming requests
