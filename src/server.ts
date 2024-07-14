@@ -37,10 +37,7 @@ app.get('/process-and-fetch-snippets', async (req, res) => {
 });
 
 // Endpoint to download all snippets as a zip file
-app.post('/download-all', async (req, res) => {
-// log both req and res to console
-console.log(req.body);
-console.log(res);
+app.post('/download-all', express.json(), async (req, res) => {
   console.log('Downloading all snippets as a zip file...');
   const { snippets } = req.body;
 
@@ -80,3 +77,4 @@ console.log(res);
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
+
