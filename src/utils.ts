@@ -22,6 +22,8 @@ export async function convertAudioFormat(inputPath: string, outputPath: string):
     return new Promise((resolve, reject) => {
         ffmpeg(inputPath)
             .toFormat('mp3')
+            .audioCodec('libmp3lame')
+            .audioQuality(2)  // Using quality scale for variable bitrate
             .on('progress', (progress) => {
                 console.log(`Processing: ${progress.percent}% done`);
             })
