@@ -38,7 +38,7 @@ export async function processVideo(videoUrl: string): Promise<void> {
         console.log(`Found ${sections.length} sections`);
 
         // Process sections in parallel
-        const parallelLimit = 4; // Number of parallel processes
+        const parallelLimit = 16; // Number of parallel processes
         const sectionBatches = [];
         for (let i = 0; i < sections.length; i += parallelLimit) {
             sectionBatches.push(sections.slice(i, i + parallelLimit));
