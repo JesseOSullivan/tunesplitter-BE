@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import archiver from 'archiver';
-import { processVideo, getSnippets } from './processVideo'; // Ensure the correct path
+import { getSnippets, processVideo } from './processVideo'; // Ensure the correct path
 import { bucketName, accessKeyId, secretAccessKey, region } from './config';
 import { S3 } from 'aws-sdk';
 
@@ -9,6 +9,7 @@ const app = express();
 const port = 3001;
 
 app.use(cors()); // Enable CORS for all routes
+app.use(express.json()); // To handle JSON body
 
 // Middleware to log incoming requests
 app.use((req, res, next) => {
@@ -39,14 +40,13 @@ app.get('/process-and-fetch-snippets', async (req, res) => {
 // Endpoint to download all snippets as a zip file
 app.post('/download-all', async (req, res) => {
   console.log('Downloading all snippets as a zip file...');
-  const { videoUrl, snippets } = req.body;
+  const { snippets } = req.body;
 
-  if (!videoUrl || !snippets) {
-    return res.status(400).send('Missing URL or snippets parameter.');
+  if (!snippets || snippets.length === 0) {
+    return res.status(400).send('Missing snippets parameter.');
   }
 
   try {
-    console.log('Fetching snippets from provided data', accessKeyId, secretAccessKey, region);
     const s3 = new S3({
       accessKeyId: accessKeyId,
       secretAccessKey: secretAccessKey,
@@ -74,7 +74,6 @@ app.post('/download-all', async (req, res) => {
     res.status(500).send(`Error creating zip file: ${error.message}`);
   }
 });
-
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
